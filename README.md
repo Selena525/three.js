@@ -1,86 +1,107 @@
-# three.js
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Disparos</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer;
+        let raycaster, mouse;
+        let targets = [];
+        let clock = new THREE.Clock();
 
-[![NPM Package][npm]][npm-url]
-[![Build Size][build-size]][build-size-url]
-[![NPM Downloads][npm-downloads]][npmtrends-url]
-[![DeepScan][deepscan]][deepscan-url]
-[![Discord][discord]][discord-url]
+        // Crear la escena, cámara y renderizador
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
 
-#### JavaScript 3D library
+        // Añadir luz
+        const light = new THREE.AmbientLight(0x404040); // Luz ambiental
+        scene.add(light);
 
-The aim of the project is to create an easy-to-use, lightweight, cross-browser, general-purpose 3D library. The current builds only include a WebGL renderer but WebGPU (experimental), SVG and CSS3D renderers are also available as addons.
+        // Crear raycaster y mouse
+        raycaster = new THREE.Raycaster();
+        mouse = new THREE.Vector2();
 
-[Examples](https://threejs.org/examples/) &mdash;
-[Docs](https://threejs.org/docs/) &mdash;
-[Manual](https://threejs.org/manual/) &mdash;
-[Wiki](https://github.com/mrdoob/three.js/wiki) &mdash;
-[Migrating](https://github.com/mrdoob/three.js/wiki/Migration-Guide) &mdash;
-[Questions](https://stackoverflow.com/questions/tagged/three.js) &mdash;
-[Forum](https://discourse.threejs.org/) &mdash;
-[Discord](https://discord.gg/56GBJwAnUS)
+        // Función para crear muñecos como objetos
+        function createTarget() {
+            const targetGeometry = new THREE.SphereGeometry(0.5, 32, 32);
+            const targetMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            const target = new THREE.Mesh(targetGeometry, targetMaterial);
+            target.position.set(Math.random() * 20 - 10, 1, Math.random() * 20 - 10);
+            targets.push(target);
+            scene.add(target);
+        }
 
-### Usage
+        // Crear varios muñecos
+        for (let i = 0; i < 5; i++) {
+            createTarget();
+        }
 
-This code creates a scene, a camera, and a geometric cube, and it adds the cube to the scene. It then creates a `WebGL` renderer for the scene and camera, and it adds that viewport to the `document.body` element. Finally, it animates the cube within the scene for the camera.
+        // Función para controlar el ratón
+        function onMouseMove(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+        }
 
-```javascript
-import * as THREE from 'three';
+        // Función de disparo (Raycast)
+        function shoot() {
+            // Convertir las coordenadas del mouse a coordenadas de la escena 3D
+            raycaster.update(camera.position, camera.getWorldDirection(new THREE.Vector3()));
 
-const width = window.innerWidth, height = window.innerHeight;
+            // Detectar los objetos que el raycast está tocando
+            const intersects = raycaster.intersectObjects(targets);
+            if (intersects.length > 0) {
+                intersects[0].object.material.color.set(0x00ff00); // Cambiar color a verde
+                scene.remove(intersects[0].object); // Eliminar el muñeco
+                targets.splice(targets.indexOf(intersects[0].object), 1); // Eliminar de la lista de objetivos
+                createTarget(); // Crear un nuevo muñeco
+            }
+        }
 
-// init
+        // Eventos de entrada (movimiento y disparo)
+        window.addEventListener('mousemove', onMouseMove, false);
+        window.addEventListener('click', shoot, false);
 
-const camera = new THREE.PerspectiveCamera( 70, width / height, 0.01, 10 );
-camera.position.z = 1;
+        // Animación de la escena
+        function animate() {
+            requestAnimationFrame(animate);
 
-const scene = new THREE.Scene();
+            // Actualizar el raycaster para que apunte desde la cámara hacia la dirección del mouse
+            raycaster.update(camera.position, camera.getWorldDirection(new THREE.Vector3()));
 
-const geometry = new THREE.BoxGeometry( 0.2, 0.2, 0.2 );
-const material = new THREE.MeshNormalMaterial();
+            // Animar los muñecos
+            targets.forEach(target => {
+                target.position.y = Math.sin(clock.getElapsedTime() + target.position.x) + 1;
+            });
 
-const mesh = new THREE.Mesh( geometry, material );
-scene.add( mesh );
+            renderer.render(scene, camera);
+        }
 
-const renderer = new THREE.WebGLRenderer( { antialias: true } );
-renderer.setSize( width, height );
-renderer.setAnimationLoop( animate );
-document.body.appendChild( renderer.domElement );
+        // Ajustar el tamaño del canvas
+        window.addEventListener('resize', () => {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+        });
 
-// animation
+        // Configurar la cámara
+        camera.position.set(0, 2, 5);
+        camera.lookAt(0, 1, 0);
 
-function animate( time ) {
+        // Iniciar animación
+        animate();
+    </script>
+</body>
+</html>
 
-	mesh.rotation.x = time / 2000;
-	mesh.rotation.y = time / 1000;
-
-	renderer.render( scene, camera );
-
-}
-```
-
-If everything goes well, you should see [this](https://jsfiddle.net/v98k6oze/).
-
-### Cloning this repository
-
-Cloning the repo with all its history results in a ~2 GB download. If you don't need the whole history you can use the `depth` parameter to significantly reduce download size.
-
-```sh
-git clone --depth=1 https://github.com/mrdoob/three.js.git
-```
-
-### Change log
-
-[Releases](https://github.com/mrdoob/three.js/releases)
-
-
-[npm]: https://img.shields.io/npm/v/three
-[npm-url]: https://www.npmjs.com/package/three
-[build-size]: https://badgen.net/bundlephobia/minzip/three
-[build-size-url]: https://bundlephobia.com/result?p=three
-[npm-downloads]: https://img.shields.io/npm/dw/three
-[npmtrends-url]: https://www.npmtrends.com/three
-[deepscan]: https://deepscan.io/api/teams/16600/projects/19901/branches/525701/badge/grade.svg
-[deepscan-url]: https://deepscan.io/dashboard#view=project&tid=16600&pid=19901&bid=525701
-[discord]: https://img.shields.io/discord/685241246557667386
-[discord-url]: https://discord.gg/56GBJwAnUS
 
